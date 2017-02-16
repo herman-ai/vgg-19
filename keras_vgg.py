@@ -116,3 +116,4 @@ model.compile('adam', 'categorical_crossentropy', ['accuracy'])
 
 history = model.fit(X_train, y_train_one_hot, nb_epoch=100, validation_split=0.2)
 
+print('Validation accuracy of model = {}'.format(history['val_acc']))
