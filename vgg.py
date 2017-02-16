@@ -13,6 +13,8 @@ import os as os
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
 
+from functools import reduce
+
 
 class Vgg19:
     """
@@ -39,13 +41,15 @@ class Vgg19:
         """
 
         rgb_scaled = rgb * .004
+
         assert rgb.get_shape().as_list()[1:] == [64, 64, 3]
         red, green, blue = tf.split(3, 3, rgb_scaled)
-        bgr = tf.concat(3, [
-            blue - VGG_MEAN[0],
-            green - VGG_MEAN[1],
-            red - VGG_MEAN[2],
-        ])
+        bgr = tf.concat(3, [blue, green, red])
+        #bgr = tf.concat(3, [
+        #    blue - VGG_MEAN[0],
+        #    green - VGG_MEAN[1],
+        #    red - VGG_MEAN[2],
+        #])
 
         self.conv1_1, self.counts_1 = self.conv_layer(bgr, 3, 16, "conv1_1")
         self.lcounts1 = tf.reduce_sum(self.counts_1)
@@ -175,10 +179,10 @@ class Vgg19:
             value = initial_value
 
         shap = initial_value.get_shape().as_list()
-        print("shape:",shap)
+        #print("shape:",shap)
         if self.trainable:
             var = tf.get_variable(name=var_name, shape=shap, initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=True,seed=1717,dtype=tf.float32), trainable=True)
-            print(self, var_name, var.get_shape().as_list())
+            #print(self, var_name, var.get_shape().as_list())
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
 
@@ -197,10 +201,10 @@ class Vgg19:
             value = initial_value
 
         shap = initial_value.get_shape().as_list()
-        print("shape:",shap)
+        #print("shape:",shap)
         if self.trainable:
             var = tf.get_variable(name=var_name, initializer=initial_value, trainable=True)
-            print(self, var_name, var.get_shape().as_list())
+            #print(self, var_name, var.get_shape().as_list())
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
 
@@ -217,13 +221,13 @@ class Vgg19:
       """Attach a lot of summaries to a Tensor."""
       with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
-        tf.scalar_summary('mean/' + name, mean)
+        tf.summary.scalar('mean/' + name, mean)
         with tf.name_scope('stddev'):
           stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.scalar_summary('stddev/' + name, stddev)
-        tf.scalar_summary('max/' + name, tf.reduce_max(var))
-        tf.scalar_summary('min/' + name, tf.reduce_min(var))
-        tf.histogram_summary(name, var)
+        tf.summary.scalar('stddev/' + name, stddev)
+        tf.summary.scalar('max/' + name, tf.reduce_max(var))
+        tf.summary.scalar('min/' + name, tf.reduce_min(var))
+        tf.summary.histogram(name, var)
 
 
     def save_npy(self, sess, npy_path="./vgg19-save.npy"):
@@ -255,10 +259,10 @@ test_set_size = 5
 IMAGE_HEIGHT  = 64
 IMAGE_WIDTH   = 64
 NUM_CHANNELS  = 3
-BATCH_SIZE    = 1
-CLASSES       = 2
+BATCH_SIZE    = 128
+CLASSES       = 200
 IMAGES_PER    = 500
-
+EPOCHS        = 100
 
 
 def read_label_file(file):
@@ -327,7 +331,6 @@ train_label_float = tf.to_float(train_label)
 train_image_batch, train_label_batch, train_index_batch = tf.train.batch(
                                     [train_image_float, train_label_float, train_index_float]
                                     ,batch_size=BATCH_SIZE
-                                    ,num_threads=1
                                     )
 
 
@@ -335,35 +338,39 @@ with tf.Session() as sess:
 
     vgg = Vgg19()
     vgg.build(train_image_batch,train_index_batch)
-    print(vgg.get_var_count())
+    print('total vgg variables = {}'.format(vgg.get_var_count()))
 
     # simple training
     cross_ent = tf.nn.softmax_cross_entropy_with_logits(vgg.fc8,train_label_batch)
     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(vgg.fc8,1),tf.argmax(train_label_batch,1)),tf.float32))
-    opt_train = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+    opt_train = tf.train.AdamOptimizer(learning_rate = 0.001)
     loss = tf.reduce_mean(cross_ent)
     opt = opt_train.minimize(loss)
 
-    merged = tf.merge_all_summaries()
-    train_writer = tf.train.SummaryWriter( './train/'+time.asctime(),sess.graph)
-    test_writer = tf.train.SummaryWriter('./test')
-    tf.initialize_all_variables().run()
+    merged = tf.summary.merge_all()
+    train_writer = tf.summary.FileWriter( './train/'+time.asctime(),sess.graph)
+    #test_writer = tf.summary.FileWriter('./test')
+    sess.run(tf.global_variables_initializer())
 
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(coord=coord)
 
     k = 0
-    for j in xrange(100):
-       sum = 0
-       for i in xrange(CLASSES*IMAGES_PER/BATCH_SIZE):
+    for j in range(EPOCHS):
+       total_accuracy = 0
+       total_loss = 0
+       for offset in range(0, CLASSES*IMAGES_PER, BATCH_SIZE):
           summary,_ = sess.run([merged,opt])
-          train_writer.add_summary(summary,k)
+          #sess.run(opt)
+          #train_writer.add_summary(summary,k)
           k = k + 1
-          cur = accuracy.eval()
+          acc = accuracy.eval()
+          loss     = cross_ent.eval()
+          print('shape of loss = {}'.format(loss.shape))
+          total_accuracy += acc
+          total_loss += loss
 
-          sum = sum + cur
-
-       print("epoch:",j," acc:",sum/(i+1))
+       print("epoch: {}, acc: {} , loss {}".format(j,total_accuracy/(CLASSES*IMAGES_PER), total_loss/(CLASSES*IMAGES_PER)))
 
 
 
