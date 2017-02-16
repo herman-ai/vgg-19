@@ -6,12 +6,15 @@ import pickle
 
 dataset_path = "tiny-imagenet-200/train/"
 
+nb_classes= 10
+
 def read_training_data(filename):
     if os.path.isfile(filename):
         return
     X_data = []
     label_data = []
     image_directories = glob.glob('tiny-imagenet-200/train/n*')
+    image_directories = image_directories[:nb_classes]
     # print(image_directories)
     for d in image_directories:
         image_filenames = os.listdir(d + '/images')

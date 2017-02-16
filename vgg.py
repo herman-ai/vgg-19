@@ -9,7 +9,6 @@ import pickle
 dataset_path      = "tiny-imagenet-200/train/"
 
 BATCH_SIZE    = 128
-CLASSES       = 200
 EPOCHS        = 100
 
 with open('train.p', 'rb') as f:
@@ -17,9 +16,22 @@ with open('train.p', 'rb') as f:
 print('features shape = {}'.format(data['features'].shape))
 print('labels shape = {}'.format(data['labels'].shape))
 
+
 features_all = data['features']
 labels_all = data['labels']
+
+CLASSES = len(np.unique(labels_all))
+print("Total classes = {}".format(CLASSES))
+
 features_all, labels_all = shuffle(features_all, labels_all)
+
+a = -0.5
+b = 0.5
+
+min_f = np.min(features_all)
+max_f = np.max(features_all)
+
+features_all = a + (b-a) * (features_all - min_f) / (max_f - min_f)
 
 features_all, labels_all = features_all[:10000], labels_all[:10000]
 
@@ -28,7 +40,7 @@ X_train, X_val, y_train, y_val = train_test_split(features_all, labels_all, test
 features = tf.placeholder(tf.float32, (None, 64, 64, 3))
 labels = tf.placeholder(tf.int64, None)
 
-one_hot_labels = tf.one_hot(labels, 200)
+one_hot_labels = tf.one_hot(labels, CLASSES)
 
 
 conv1_1W = tf.Variable(tf.truncated_normal(shape=(3, 3, 3, 64), stddev = 1e-2))
@@ -125,8 +137,8 @@ fc7   = tf.matmul(fc6, fc7_W) + fc7_b
 
 fc7    = tf.nn.relu(fc7)
 
-fc8_W = tf.Variable(tf.truncated_normal(shape=(4096, 200), stddev = 1e-2))
-fc8_b = tf.Variable(tf.zeros(200))
+fc8_W = tf.Variable(tf.truncated_normal(shape=(4096, CLASSES), stddev = 1e-2))
+fc8_b = tf.Variable(tf.zeros(CLASSES))
 fc8   = tf.matmul(fc7, fc8_W) + fc8_b
 
 logits    = tf.nn.relu(fc8)
