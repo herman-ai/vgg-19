@@ -264,27 +264,8 @@ CLASSES       = 200
 IMAGES_PER    = 500
 EPOCHS        = 100
 
-def read_training_data():
-    X_data = []
-    label_data = []
-    image_directories = os.listdir('tiny-imagenet-200/train/')
-    for d in image_directories:
-        image_filenames = os.listdir(dataset_path + d + '/images')
-        for fname in image_filenames:
-            X = scipy.ndimage.imread(dataset_path + d + '/images/'+fname, mode='RGB')
-            label = fname.split('_')[0]
-            X_data.append(X)
-            label_data.append(label)
-    X_data = np.stack(X_data, axis=0)
-    labels_unique = np.unique(label_data)
-    y_unique = range(len(labels_unique))
-    label_y_map = dict(zip(labels_unique, y_unique))
-    y_data = [label_y_map[label] for label in label_data]
-    y_data = np.asarray(y_data)
-    assert X_data.shape[1] == 64
-    assert X_data.shape[2] == 64
-    assert X_data.shape[3] == 3
-    return X_data, y_data
+
+
 
 
 def read_label_file(file):
@@ -306,99 +287,99 @@ def read_label_file(file):
   return filepaths, labels, findex
 
 # reading labels and file path
-train_filepaths, train_labels, train_indexes = read_label_file(dataset_path)
-
-# convert file strings and labels into constant tensors
-all_images = ops.convert_to_tensor(train_filepaths, dtype=dtypes.string)
-all_labels = ops.convert_to_tensor(train_labels, dtype=dtypes.int32)
-all_indexes = ops.convert_to_tensor(train_indexes, dtype=dtypes.int32)
-
-
-# create a partition vector
-partitions = [0] * len(train_filepaths)
-partitions[:test_set_size] = [1] * test_set_size
-np.random.shuffle(partitions)
-
-# partition our data into a test and train set according to our partition vector
-#train_images = tf.dynamic_partition(all_images, partitions, 1)
-#train_labels  = tf.dynamic_partition(all_labels, partitions, 1)
-train_images = all_images
-train_labels = all_labels
-train_indexes = all_indexes
-
-images = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
-true_out = tf.placeholder(tf.float32, [BATCH_SIZE,200])
-
-
-# create input queues
-train_input_queue = tf.train.slice_input_producer(
-                                    [train_images, train_labels, train_indexes],
-                                    shuffle=True)
-
-# process path and string tensor into an image and a label
-file_content = tf.read_file(train_input_queue[0])
-train_image = tf.image.decode_jpeg(file_content, channels=NUM_CHANNELS)
-train_label = tf.one_hot(train_input_queue[1],200,on_value=1,off_value=0)
-train_index = train_input_queue[2]
-
-# define tensor shape
-train_image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
-train_label.set_shape([200])
-
-train_image_float = tf.to_float(train_image)
-train_index_float = tf.to_float(train_index)
-train_label_float = tf.to_float(train_label)
-
-# collect batches of images before processing
-train_image_batch, train_label_batch, train_index_batch = tf.train.batch(
-                                    [train_image_float, train_label_float, train_index_float]
-                                    ,batch_size=BATCH_SIZE
-                                    )
-
-
-with tf.Session() as sess:
-
-    vgg = Vgg19()
-    vgg.build(train_image_batch,train_index_batch)
-    print('total vgg variables = {}'.format(vgg.get_var_count()))
-
-    # simple training
-    cross_ent = tf.nn.softmax_cross_entropy_with_logits(vgg.fc8,train_label_batch)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(vgg.fc8,1),tf.argmax(train_label_batch,1)),tf.float32))
-    opt_train = tf.train.AdamOptimizer(learning_rate = 0.001)
-    loss = tf.reduce_mean(cross_ent)
-    opt = opt_train.minimize(loss)
-
-    merged = tf.summary.merge_all()
-    train_writer = tf.summary.FileWriter( './train/'+time.asctime(),sess.graph)
-    #test_writer = tf.summary.FileWriter('./test')
-    sess.run(tf.global_variables_initializer())
-
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(coord=coord)
-
-    k = 0
-    for j in range(EPOCHS):
-       total_accuracy = 0
-       total_loss = 0
-       for offset in range(0, CLASSES*IMAGES_PER, BATCH_SIZE):
-          summary,_ = sess.run([merged,opt])
-          #sess.run(opt)
-          #train_writer.add_summary(summary,k)
-          k = k + 1
-          acc = accuracy.eval()
-          loss     = cross_ent.eval()
-          print('shape of loss = {}'.format(loss.shape))
-          total_accuracy += acc
-          total_loss += loss
-
-       print("epoch: {}, acc: {} , loss {}".format(j,total_accuracy/(CLASSES*IMAGES_PER), total_loss/(CLASSES*IMAGES_PER)))
-
-
-
-    # stop our queue threads and properly close the session
-    coord.request_stop()
-    coord.join(threads)
-    sess.close()
+# train_filepaths, train_labels, train_indexes = read_label_file(dataset_path)
+#
+# # convert file strings and labels into constant tensors
+# all_images = ops.convert_to_tensor(train_filepaths, dtype=dtypes.string)
+# all_labels = ops.convert_to_tensor(train_labels, dtype=dtypes.int32)
+# all_indexes = ops.convert_to_tensor(train_indexes, dtype=dtypes.int32)
+#
+#
+# # create a partition vector
+# partitions = [0] * len(train_filepaths)
+# partitions[:test_set_size] = [1] * test_set_size
+# np.random.shuffle(partitions)
+#
+# # partition our data into a test and train set according to our partition vector
+# #train_images = tf.dynamic_partition(all_images, partitions, 1)
+# #train_labels  = tf.dynamic_partition(all_labels, partitions, 1)
+# train_images = all_images
+# train_labels = all_labels
+# train_indexes = all_indexes
+#
+# images = tf.placeholder(tf.float32, [BATCH_SIZE, 64, 64, 3])
+# true_out = tf.placeholder(tf.float32, [BATCH_SIZE,200])
+#
+#
+# # create input queues
+# train_input_queue = tf.train.slice_input_producer(
+#                                     [train_images, train_labels, train_indexes],
+#                                     shuffle=True)
+#
+# # process path and string tensor into an image and a label
+# file_content = tf.read_file(train_input_queue[0])
+# train_image = tf.image.decode_jpeg(file_content, channels=NUM_CHANNELS)
+# train_label = tf.one_hot(train_input_queue[1],200,on_value=1,off_value=0)
+# train_index = train_input_queue[2]
+#
+# # define tensor shape
+# train_image.set_shape([IMAGE_HEIGHT, IMAGE_WIDTH, NUM_CHANNELS])
+# train_label.set_shape([200])
+#
+# train_image_float = tf.to_float(train_image)
+# train_index_float = tf.to_float(train_index)
+# train_label_float = tf.to_float(train_label)
+#
+# # collect batches of images before processing
+# train_image_batch, train_label_batch, train_index_batch = tf.train.batch(
+#                                     [train_image_float, train_label_float, train_index_float]
+#                                     ,batch_size=BATCH_SIZE
+#                                     )
+#
+#
+# with tf.Session() as sess:
+#
+#     vgg = Vgg19()
+#     vgg.build(train_image_batch,train_index_batch)
+#     print('total vgg variables = {}'.format(vgg.get_var_count()))
+#
+#     # simple training
+#     cross_ent = tf.nn.softmax_cross_entropy_with_logits(vgg.fc8,train_label_batch)
+#     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(vgg.fc8,1),tf.argmax(train_label_batch,1)),tf.float32))
+#     opt_train = tf.train.AdamOptimizer(learning_rate = 0.001)
+#     loss = tf.reduce_mean(cross_ent)
+#     opt = opt_train.minimize(loss)
+#
+#     merged = tf.summary.merge_all()
+#     train_writer = tf.summary.FileWriter( './train/'+time.asctime(),sess.graph)
+#     #test_writer = tf.summary.FileWriter('./test')
+#     sess.run(tf.global_variables_initializer())
+#
+#     coord = tf.train.Coordinator()
+#     threads = tf.train.start_queue_runners(coord=coord)
+#
+#     k = 0
+#     for j in range(EPOCHS):
+#        total_accuracy = 0
+#        total_loss = 0
+#        for offset in range(0, CLASSES*IMAGES_PER, BATCH_SIZE):
+#           summary,_ = sess.run([merged,opt])
+#           #sess.run(opt)
+#           #train_writer.add_summary(summary,k)
+#           k = k + 1
+#           acc = accuracy.eval()
+#           loss     = cross_ent.eval()
+#           print('shape of loss = {}'.format(loss.shape))
+#           total_accuracy += acc
+#           total_loss += loss
+#
+#        print("epoch: {}, acc: {} , loss {}".format(j,total_accuracy/(CLASSES*IMAGES_PER), total_loss/(CLASSES*IMAGES_PER)))
+#
+#
+#
+#     # stop our queue threads and properly close the session
+#     coord.request_stop()
+#     coord.join(threads)
+#     sess.close()
 
 
