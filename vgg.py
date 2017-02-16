@@ -9,12 +9,12 @@ import time as time
 import numpy as np
 import skimage.io as io
 import skimage.transform as skt
-import os as os
+import os
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import dtypes
 
 from functools import reduce
-
+import scipy.ndimage
 
 class Vgg19:
     """
@@ -263,6 +263,28 @@ BATCH_SIZE    = 128
 CLASSES       = 200
 IMAGES_PER    = 500
 EPOCHS        = 100
+
+def read_training_data():
+    X_data = []
+    label_data = []
+    image_directories = os.listdir('tiny-imagenet-200/train/')
+    for d in image_directories:
+        image_filenames = os.listdir(dataset_path + d + '/images')
+        for fname in image_filenames:
+            X = scipy.ndimage.imread(dataset_path + d + '/images/'+fname, mode='RGB')
+            label = fname.split('_')[0]
+            X_data.append(X)
+            label_data.append(label)
+    X_data = np.stack(X_data, axis=0)
+    labels_unique = np.unique(label_data)
+    y_unique = range(len(labels_unique))
+    label_y_map = dict(zip(labels_unique, y_unique))
+    y_data = [label_y_map[label] for label in label_data]
+    y_data = np.asarray(y_data)
+    assert X_data.shape[1] == 64
+    assert X_data.shape[2] == 64
+    assert X_data.shape[3] == 3
+    return X_data, y_data
 
 
 def read_label_file(file):
