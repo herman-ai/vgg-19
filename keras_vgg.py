@@ -56,13 +56,13 @@ model.add(Activation('relu'))
 
 model.add(MaxPooling2D((2,2)))
 
-#model.add(Convolution2D(128, 3, 3, border_mode = 'same'))
-#model.add(Activation('relu'))
+model.add(Convolution2D(128, 3, 3, border_mode = 'same'))
+model.add(Activation('relu'))
 
-#model.add(Convolution2D(128, 3, 3, border_mode = 'same'))
-#model.add(Activation('relu'))
+model.add(Convolution2D(128, 3, 3, border_mode = 'same'))
+model.add(Activation('relu'))
 
-#model.add(MaxPooling2D((2,2)))
+model.add(MaxPooling2D((2,2)))
 
 #model.add(Convolution2D(256, 3, 3, border_mode = 'same'))
 #model.add(Activation('relu'))
@@ -114,6 +114,6 @@ model.add(Activation('relu'))
 
 model.compile('adam', 'categorical_crossentropy', ['accuracy'])
 
-history = model.fit(X_train, y_train_one_hot, nb_epoch=100, validation_split=0.2)
+history = model.fit(X_train, y_train_one_hot, nb_epoch=EPOCHS, validation_split=0.2)
 
-print('Validation accuracy of model = {}'.format(history['val_acc']))
+print('Validation accuracy of model = {}'.format(history.history['val_acc']))

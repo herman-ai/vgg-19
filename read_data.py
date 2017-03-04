@@ -6,7 +6,7 @@ import pickle
 
 dataset_path = "tiny-imagenet-200/train/"
 
-nb_classes= 10
+nb_classes=10 
 
 def read_training_data(filename):
     if os.path.isfile(filename):
@@ -14,7 +14,9 @@ def read_training_data(filename):
     X_data = []
     label_data = []
     image_directories = glob.glob('tiny-imagenet-200/train/n*')
+
     image_directories = image_directories[:nb_classes]
+    
     # print(image_directories)
     for d in image_directories:
         image_filenames = os.listdir(d + '/images')
@@ -36,7 +38,7 @@ def read_training_data(filename):
     assert X_data.shape[2] == 64
     assert X_data.shape[3] == 3
     with open(filename, 'wb') as f:
-        pickle.dump({'features': X_data, 'labels': y_data}, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump({'features': X_data, 'labels': y_data, 'label-map': label_y_map}, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == '__main__':
